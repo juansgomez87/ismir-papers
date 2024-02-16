@@ -1,7 +1,7 @@
-data/pdf/*
+data/pdfs/*
 data/txts/*
 data/full_proceedings/*
-
+.env
 .venv/
 
 # Byte-compiled / optimized / DLL files
