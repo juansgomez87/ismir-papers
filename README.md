@@ -21,9 +21,9 @@ To parse text from pdfs (not really working):
 ```
 python parse_text.py
 ```
-To scrape data from ISMIR/Zenodo (@Erick, please update this):
+To scrape data from ISMIR/Zenodo (edit source code to add websites to scrape from):
 ```
-python scrape.py
+python zenodo_scraper.py
 ```
 To produce topics based on sentence embeddings:
 ```
