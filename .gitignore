@@ -1,3 +1,4 @@
+.conda/
 data/pdfs/*
 data/txts/*
 data/full_proceedings/*
