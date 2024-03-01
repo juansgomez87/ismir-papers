@@ -5,6 +5,10 @@ data/full_proceedings/*
 .env
 .venv/
 .DS_Store
+parse_text.py
+data/scopus-1.csv
+data/scopus-16.csv
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

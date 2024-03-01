@@ -11,15 +11,11 @@ touch .env
 ```
 Complete the .env file with the following keys:
 ```
-openai_api_key=xxx
+OPENAI_API_KEY=xxx
 ```
 To scrape conferences from ISMIR yearly websites:
 ```
 python conf_scraper.py
-```
-To parse text from pdfs (not really working):
-```
-python parse_text.py
 ```
 To scrape data from ISMIR/Zenodo (edit source code to add websites to scrape from):
 ```

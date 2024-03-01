@@ -9,7 +9,11 @@ import pandas as pd
 import re
 from tqdm import tqdm
 import functools
-from time import time
+import time
+from dotenv import load_dotenv
+import pdb
+
+load_dotenv()
 
 API_KEY = os.environ.get("OPENAI_API_KEY")
 
@@ -100,14 +104,19 @@ def get_pdf_url(doi_url):
     """
     Uses Selenium to extract the PDF URL from a DOI URL
     """
-    driver = webdriver.Chrome()
+    options = webdriver.ChromeOptions()
+    options.add_argument('--headless')
+    driver = webdriver.Chrome(options=options)
     driver.maximize_window()
     driver.get(doi_url)
 
     # Extract the PDF URL <link rel="alternate" type="application/pdf" href=<url>>
-    pdf_url = driver.find_element(
-        By.CSS_SELECTOR, 'link[rel="alternate"][type="application/pdf"]'
-    ).get_attribute("href")
+    try:
+        pdf_url = driver.find_element(
+            By.CSS_SELECTOR, 'link[rel="alternate"][type="application/pdf"]'
+        ).get_attribute("href")
+    except:
+        pdb.set_trace()
 
     driver.quit()
 
@@ -123,17 +132,23 @@ def generate_affiliations(path, save_dir):
     for index, doi_url in df["Link"].items():
         if (
             df["Authors with Affiliations"][index] == ""
+            or pd.isna(df["Authors with Affiliations"][index])
             or df["Authors with Affiliations"][index] is None
         ):
             print(f"Getting affiliations for: {doi_url}")
             pdf_url = get_pdf_url(doi_url)
             affiliations_dict = get_affiliations(pdf_url)
             formatted_affiliations = ""
+            if type(affiliations_dict) is tuple:
+                test = {}
+                [test.update(_) for _ in affiliations_dict]
+                affiliations_dict = test
+
             for author, affiliation in affiliations_dict.items():
                 formatted_affiliations += f"{author}, {affiliation};"
 
             df.loc[index, "Authors with Affiliations"] = formatted_affiliations[:-1]
-            pd.to_csv(f"{save_dir}/{path}", index=False)
+            df.to_csv(f"{save_dir}/{path}", index=False)
 
         else:
             print(f"Affiliations already exist for: {doi_url} || Index: {index}")
@@ -260,7 +275,9 @@ def get_zenodo_record(record_id):
 
 
 def extract_table_data(url):
-    driver = webdriver.Chrome()
+    options = webdriver.ChromeOptions()
+    options.add_argument('--headless')
+    driver = webdriver.Chrome(options=options)
     driver.maximize_window()
     driver.get(url)
 
@@ -353,12 +370,15 @@ def scrape_all_websites(urls):
     for url in urls:
         year = url.split("/")[-1].split(".")[0][-4:]
         print(f"Scraping ISMIR website papers for year: {year}")
-        data = scrape_website(url)
+        if not os.path.exists(f"data/ismir_{year}.csv"):
+            data = scrape_website(url)
+            # check if data directory exists
+            if not os.path.exists("data"):
+                os.makedirs("data")
+            data.to_csv(f"data/ismir_{year}.csv")
+        else:
+            print(f"Data for year {year} was already scraped!")
 
-        # check if data directory exists
-        if not os.path.exists("data"):
-            os.makedirs("data")
-        data.to_csv(f"data/ismir_{year}.csv")
 
 
 def postprocess_all_data(paths, save_dir):
@@ -367,7 +387,6 @@ def postprocess_all_data(paths, save_dir):
         print(f"Generating affiliations for: {data_path}")
         generate_affiliations(data_path, save_dir)
 
-        # Abstract extraction
         print(f"Extracting abstracts for: {data_path}")
         generate_abstracts(data_path, save_dir)
 
@@ -384,7 +403,10 @@ if __name__ == "__main__":
         "https://ismir.net/conferences/ismir2003.html",
         "https://ismir.net/conferences/ismir2004.html",
         "https://ismir.net/conferences/ismir2005.html",
+        "https://ismir.net/conferences/ismir2020.html",
         "https://ismir.net/conferences/ismir2021.html",
+        "https://ismir.net/conferences/ismir2022.html",
+        "https://ismir.net/conferences/ismir2023.html"
     ]
 
     # Scrape information
