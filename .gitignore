@@ -6,6 +6,7 @@ data/full_proceedings/*
 .venv/
 .DS_Store
 parse_text.py
+fix_outputs.py
 data/scopus-1.csv
 data/scopus-16.csv
 
