@@ -9,6 +9,7 @@ parse_text.py
 fix_outputs.py
 data/scopus-1.csv
 data/scopus-16.csv
+data/output.csv
 
 
 # Byte-compiled / optimized / DLL files

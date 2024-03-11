@@ -94,17 +94,22 @@ def legacy_topic_modeling(df, col):
     plt.savefig('assets/coherence_{}.png'.format(col))
     plt.show()
 
-def plot_embeddings(df, emb, col, dim=2):
+def plot_embeddings(df, emb, col, dim):
     red = 'tsne'
+    seed = np.random.seed(1987)
 
     if red == 'pca':
         X_emb = PCA(n_components=dim,
+                    random_state=seed,
+                    n_jobs=-1,
                     ).fit_transform(emb)
     elif red == 'tsne':
         X_emb = TSNE(n_components=dim,
                      learning_rate='auto',
-                     init='random',
-                     perplexity=10).fit_transform(emb)
+                     init='pca',
+                     random_state=seed,
+                     n_jobs=-1,
+                     perplexity=20).fit_transform(emb)
 
     if dim == 2:
         df['dim_1'] = X_emb[:, 0]
@@ -134,7 +139,6 @@ def plot_embeddings(df, emb, col, dim=2):
         fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
         fig.show()
     fig.write_html('assets/embeddings_{}_{}_{}d.html'.format(col, red, dim))
-    pdb.set_trace()
 
 def calculate_embeddings(df, col):
     # load model
@@ -143,7 +147,6 @@ def calculate_embeddings(df, col):
     embeddings = model.encode(df[col])
     plot_embeddings(df, embeddings, col, dim=2)
 
-    pdb.set_trace()
 
 
 if __name__ == '__main__':
@@ -157,9 +160,8 @@ if __name__ == '__main__':
     if args.type != 'Title' and args.type != 'Abstract':
         print('Choose valid type [Title/Abstract]!')
         sys.exit()
-    df = pd.read_csv('data/output.csv')
+    df = pd.read_csv('data/output_zen.csv', sep=';')
 
     # legacy_topic_modeling(df, args.type)
 
     calculate_embeddings(df, args.type)
-    pdb.set_trace()
