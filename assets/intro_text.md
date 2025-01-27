@@ -1,0 +1,7 @@
+The Music Information Retrieval (MIR) community has grown enormously over the past two decades in terms of both the quantity and variety of research contributions. 
+Despite this growth, questions still emerge about who belongs to the community and who does not. % Here, we might want to frame the "being part of" or "belonging" differently. Not sure yet. 
+Western, Educated, Industrialised, Rich and Democratic (WEIRD) science significantly impacts research outcomes, including reproducibility and cross-cultural variations.
+Although its effects have been widely discussed in neighboring fields, we identify a need to evaluate the status of WEIRDness in MIR. 
+In this work, we consider the corpus of 2360 ISMIR papers published between 2000 and 2023, analyzing the types of research organizations as well as geographic locations based on author affiliations. 
+We find the body of published ISMIR research to be somewhat but not completely WEIRD. For example, the Global North remains disproportionately represented, but we also observe positive indicators such as the growth of cross-institutional collaborations over time.
+In addition to the bibliometric analysis, we contribute a novel topic-based visualizer as well as suggestions for the MIR community to consider around confronting, and potentially reconciling, its WEIRDness.

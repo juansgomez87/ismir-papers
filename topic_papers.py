@@ -11,7 +11,8 @@ from gensim.models.coherencemodel import CoherenceModel
 from sentence_transformers import SentenceTransformer
 from sklearn.manifold import TSNE
 from sklearn.decomposition import PCA
-import plotly.express as px
+# import plotly.express as px
+import plotly.graph_objects as go
 import argparse
 import sys
 import pdb
@@ -97,6 +98,7 @@ def legacy_topic_modeling(df, col):
 def plot_embeddings(df, emb, col, dim):
     red = 'tsne'
     seed = np.random.seed(1987)
+    plot_flag = False
 
     if red == 'pca':
         X_emb = PCA(n_components=dim,
@@ -114,38 +116,53 @@ def plot_embeddings(df, emb, col, dim):
     if dim == 2:
         df['dim_1'] = X_emb[:, 0]
         df['dim_2'] = X_emb[:, 1]
-        fig = px.scatter(df,
-                         x='dim_1',
-                         y='dim_2',
-                         color='Year',
-                         hover_name='Title',
-                         hover_data=['Authors'])
-        fig.update_traces(marker=dict(size=8))
-        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
-        fig.show()
-
     elif dim == 3:
         df['dim_1'] = X_emb[:, 0]
         df['dim_2'] = X_emb[:, 1]
         df['dim_3'] = X_emb[:, 2]
-        fig = px.scatter_3d(df,
-                            x='dim_1',
-                            y='dim_2',
-                            z='dim_3',
-                            color='Year',
-                            hover_name='Title',
-                            hover_data=['Authors'])
-        fig.update_traces(marker=dict(size=4))
-        fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
-        fig.show()
-    fig.write_html('assets/embeddings_{}_{}_{}d.html'.format(col, red, dim))
+
+    if plot_flag:
+        if dim == 2:
+            fig = go.Figure()
+            fig.add_trace(go.Scatter(
+                             x=df['dim_1'],
+                             y=df['dim_2'],
+                             mode='markers',
+                             marker_color=df['Year'],
+                             text=df['Title'],
+                             marker=dict(
+                                 size=8,
+                                 showscale=True
+                             )))
+            fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
+            fig.show()
+
+        elif dim == 3:
+            fig = go.Figure()
+            fig.add_trace(go.Scatter3d(
+                             x=df['dim_1'],
+                             y=df['dim_2'],
+                             z=df['dim_3'],
+                             mode='markers',
+                             marker_color=df['Year'],
+                             text=df['Title'],
+                             marker=dict(
+                                 size=4,
+                                 showscale=True
+                             )))
+
+            fig.update_layout(margin=dict(l=0, r=0, b=0, t=0))
+            fig.show()
+        fig.write_html('assets/embeddings_{}_{}_{}d.html'.format(col, red, dim))
+
+    df.to_csv('data/output_{}_{}_{}d_emb.csv'.format(col, red, dim), sep=';', index=False)
 
 def calculate_embeddings(df, col):
     # load model
     model = SentenceTransformer("all-MiniLM-L6-v2")
     # calculate sentence embeddings
     embeddings = model.encode(df[col])
-    plot_embeddings(df, embeddings, col, dim=2)
+    plot_embeddings(df, embeddings, col, dim=3)
 
 
 
@@ -160,7 +177,7 @@ if __name__ == '__main__':
     if args.type != 'Title' and args.type != 'Abstract':
         print('Choose valid type [Title/Abstract]!')
         sys.exit()
-    df = pd.read_csv('data/output_zen.csv', sep=';')
+    df = pd.read_csv('data/output.csv')
 
     # legacy_topic_modeling(df, args.type)
 

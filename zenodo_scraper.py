@@ -6,6 +6,7 @@ import fitz
 import ast
 import os
 import pandas as pd
+import numpy as np
 import re
 from tqdm import tqdm
 import functools
@@ -47,19 +48,28 @@ def retry_on_ratelimit(max_retries=3, delay=60):
 
 @retry_on_ratelimit(max_retries=3, delay=60)
 def openai_extract_affiliations(page_text):
-    """uses OpenAI gpt-3.5 to extract affiliations"""
+    """uses OpenAI gpt-4 to extract affiliations"""
     client = OpenAI(
         # This is the default and can be omitted
         api_key=API_KEY,
     )
 
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo-16k",
+        model="gpt-4-turbo-preview",
+        # model="gpt-3.5-turbo",
         temperature=0,
         messages=[
             {
                 "role": "system",
-                "content": 'You will be given a PDF as text. From the text, extract the author affiliations. Ignore any addresses or emails or similar information for the affiliations. An affiliation should only be something such as a university, a company, or a similar entity. Compile this information into a single python dictionary that maps from string to string. You should only respond back in the form of: {"<author as string>": "<affiliation as string>"} unless stated otherwise. If you find an author but no affiliation, then set the value for the author as the empty string: "". If there is no author/affiliation information in this context at all, then return: { }. Make sure the keys and values are always strings, really think carefully if your response matches the technical specifications. Make sure you only respond with a single dictionary.',
+                "content": '''You will be given a PDF as text. From the text, extract the author affiliations. Ignore any addresses or emails or similar information for \
+                the affiliations. An affiliation should only be something such as a university, a company, or a similar entity. Each affiliation should also include the \
+                country and the category of the entity. The countries should be in ISO 31166-1 A3 format. The categories are education (e.g., university), company, and \
+                facility (e.g., research center, governmental agencies, non-profit). The affiliations come from all over the world so expect non-English text as well. \
+                Compile this information into a single python dictionary that maps from string to string. You should only respond back in the form of: \
+                {"<author as string>": "<affiliation as string>"} unless stated otherwise. "<affiliation as string>" should be separated by commas, for example: \
+                Stanford University, USA, education. If you find an author but no affiliation, then set the value for the author as the empty string: "". If there \
+                is no author/affiliation information in this context at all, then return: { }. Make sure the keys and values are always strings, really think carefully \'
+                'if your response matches the technical specifications. Make sure you only respond with a single dictionary.''',
             },
             {"role": "user", "content": page_text},
         ],
@@ -69,7 +79,7 @@ def openai_extract_affiliations(page_text):
 
 
 def get_affiliations(pdf_url):
-    """Uses GPT-3.5 to read in a PDF file and automatically determine author affiliations
+    """Uses GPT-4 to read in a PDF file and automatically determine author affiliations
     Returns a dictionary that maps authors to their affiliations
     """
     # Download PDF
@@ -112,11 +122,11 @@ def get_pdf_url(doi_url):
 
     # Extract the PDF URL <link rel="alternate" type="application/pdf" href=<url>>
     try:
-        pdf_url = driver.find_element(
-            By.CSS_SELECTOR, 'link[rel="alternate"][type="application/pdf"]'
-        ).get_attribute("href")
+        pdf_url = driver.find_element(By.CSS_SELECTOR, 'link[rel="alternate"][type="application/pdf"]').get_attribute("href")
     except:
-        pdb.set_trace()
+        time.sleep(2)
+        driver.get(doi_url)
+        pdf_url = driver.find_element(By.CSS_SELECTOR, 'link[rel="alternate"][type="application/pdf"]').get_attribute("href")
 
     driver.quit()
 
@@ -136,38 +146,53 @@ def generate_affiliations(path, save_dir):
             or df["Authors with Affiliations"][index] is None
         ):
             print(f"Getting affiliations for: {doi_url}")
-            pdf_url = get_pdf_url(doi_url)
-            affiliations_dict = get_affiliations(pdf_url)
-            formatted_affiliations = ""
-            if type(affiliations_dict) is tuple:
-                test = {}
-                [test.update(_) for _ in affiliations_dict]
-                affiliations_dict = test
 
-            for author, affiliation in affiliations_dict.items():
-                formatted_affiliations += f"{author}, {affiliation};"
+            try:
+                pdf_url = get_pdf_url(doi_url)
+            except Exception as e:
+                print(f"Failed to retrieve PDF link: {e}")
+                pdf_url = "Missing"
 
-            df.loc[index, "Authors with Affiliations"] = formatted_affiliations[:-1]
-            df.to_csv(f"{save_dir}/{path}", index=False)
+            if pdf_url != 'Missing':
+                affiliations_dict = get_affiliations(pdf_url)
+
+                formatted_affiliations = ""
+                if type(affiliations_dict) is tuple:
+                    test = {}
+                    [test.update(_) for _ in affiliations_dict]
+                    affiliations_dict = test
+
+                for author, affiliation in affiliations_dict.items():
+                    formatted_affiliations += f"{author}, {affiliation};"
+
+                df.loc[index, "Authors with Affiliations"] = formatted_affiliations[:-1]
+                df.to_csv(f"{save_dir}/{path}", index=False)
+            else:
+                df.loc[index, "Authors with Affiliations"] = 'Not found'
+                df.to_csv(f"{save_dir}/{path}", index=False)
 
         else:
             print(f"Affiliations already exist for: {doi_url} || Index: {index}")
 
 
 def openai_get_abstract(page_text):
-    """uses OpenAI gpt-3.5 to extract the abstract"""
+    """uses OpenAI gpt-4 to extract the abstract"""
     client = OpenAI(
         # This is the default and can be omitted
         api_key=API_KEY,
     )
 
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo-16k",
+        model="gpt-4-turbo-preview",
+        # model="gpt-3.5-turbo",
         temperature=0,
         messages=[
             {
                 "role": "system",
-                "content": 'You will be given a PDF as text. From the text, extract the abstract. An abstract is a short paragraph that summarizes the research. It should be a few sentences long. If you find an abstract, respond with the abstract as a string exactly as it was typed in the original context. If there is no abstract in this context at all, then return: "". Do not include the title of the paragraph (often the word "Abstract"). Make sure your response matches the technical specifications. DO NOT SUMMARIZE THE ABSTRACT!',
+                "content": '''You will be given a PDF as text. From the text, extract the abstract. An abstract is a short paragraph that summarizes the \
+                 research. It should be a few sentences long. If you find an abstract, respond with the abstract as a string exactly as it was typed in \
+                 the original context. If there is no abstract in this context at all, then return: "". Do not include the title of the paragraph (often \
+                 the word "Abstract"). Make sure your response matches the technical specifications. DO NOT SUMMARIZE THE ABSTRACT!''',
             },
             {"role": "user", "content": page_text},
         ],
@@ -346,7 +371,12 @@ def scrape_website(url):
         record = get_zenodo_record(record_id)
 
         print(f"Parsing record: {record_id}")
-        metadata = parse_zenodo_record(record, pdf_url)
+        try:
+            metadata = parse_zenodo_record(record, pdf_url)
+        except:
+            time.sleep(2)
+            record = get_zenodo_record(record_id)
+            metadata = parse_zenodo_record(record, pdf_url)
 
         row = format_data(metadata)
         all_data.append(row)
@@ -370,12 +400,12 @@ def scrape_all_websites(urls):
     for url in urls:
         year = url.split("/")[-1].split(".")[0][-4:]
         print(f"Scraping ISMIR website papers for year: {year}")
-        if not os.path.exists(f"data/ismir_{year}.csv"):
+        if not os.path.exists(f"data/ismir/ismir_{year}.csv"):
             data = scrape_website(url)
             # check if data directory exists
             if not os.path.exists("data"):
                 os.makedirs("data")
-            data.to_csv(f"data/ismir_{year}.csv")
+            data.to_csv(f"data/ismir/ismir_{year}.csv")
         else:
             print(f"Data for year {year} was already scraped!")
 
@@ -395,25 +425,16 @@ def postprocess_all_data(paths, save_dir):
 
 if __name__ == "__main__":
 
-    # ISMIR websites to scrape, 2000-2005, and 2021
-    urls = [
-        "https://ismir.net/conferences/ismir2000.html",
-        "https://ismir.net/conferences/ismir2001.html",
-        "https://ismir.net/conferences/ismir2002.html",
-        "https://ismir.net/conferences/ismir2003.html",
-        "https://ismir.net/conferences/ismir2004.html",
-        "https://ismir.net/conferences/ismir2005.html",
-        "https://ismir.net/conferences/ismir2020.html",
-        "https://ismir.net/conferences/ismir2021.html",
-        "https://ismir.net/conferences/ismir2022.html",
-        "https://ismir.net/conferences/ismir2023.html"
-    ]
+    # ISMIR websites to scrape
+    years = np.arange(2000, 2024)
+
+    urls = ['https://ismir.net/conferences/ismir{}.html'.format(year) for year in years]
 
     # Scrape information
     # scrape_all_websites(urls)
 
-    # Use an LLM to automate tasks in post processing step
-    # Tasks can include abstract extraction, keyword extraction, and author affiliation extraction
+    # # Use an LLM to automate tasks in post processing step
+    # # Tasks can include abstract extraction, keyword extraction, and author affiliation extraction
     save_dir = "data/ismir"
     data_paths = os.listdir(save_dir)
     postprocess_all_data(data_paths, save_dir)

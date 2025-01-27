@@ -13,10 +13,6 @@ Complete the .env file with the following keys:
 ```
 OPENAI_API_KEY=xxx
 ```
-To scrape conferences from ISMIR yearly websites:
-```
-python conf_scraper.py
-```
 To scrape data from ISMIR/Zenodo (edit source code to add websites to scrape from):
 ```
 python zenodo_scraper.py
