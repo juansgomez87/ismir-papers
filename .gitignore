@@ -2,6 +2,8 @@
 data/pdfs/*
 data/txts/*
 data/full_proceedings/*
+data/divinAI_ISMIR/*
+data/data_*
 .env
 .venv/
 .DS_Store
@@ -12,6 +14,10 @@ data/scopus-1.csv
 data/scopus-16.csv
 data/output.csv
 plot.py
+conf_scraper.py
+tester.py
+data/.DS_Store
+
 
 
 # Byte-compiled / optimized / DLL files
