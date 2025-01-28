@@ -98,7 +98,7 @@ def legacy_topic_modeling(df, col):
 def plot_embeddings(df, emb, col, dim):
     red = 'tsne'
     seed = np.random.seed(1987)
-    plot_flag = False
+    plot_flag = True
 
     if red == 'pca':
         X_emb = PCA(n_components=dim,
@@ -177,7 +177,9 @@ if __name__ == '__main__':
     if args.type != 'Title' and args.type != 'Abstract':
         print('Choose valid type [Title/Abstract]!')
         sys.exit()
-    df = pd.read_csv('data/output.csv')
+    df = pd.read_csv('data/summary_dataset.csv', encoding='utf-8')
+
+    pdb.set_trace()
 
     # legacy_topic_modeling(df, args.type)
 
