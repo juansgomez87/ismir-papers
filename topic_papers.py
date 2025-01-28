@@ -162,7 +162,8 @@ def calculate_embeddings(df, col):
     model = SentenceTransformer("all-MiniLM-L6-v2")
     # calculate sentence embeddings
     embeddings = model.encode(df[col])
-    plot_embeddings(df, embeddings, col, dim=3)
+
+    plot_embeddings(df, embeddings, col, dim=2)
 
 
 
@@ -177,9 +178,8 @@ if __name__ == '__main__':
     if args.type != 'Title' and args.type != 'Abstract':
         print('Choose valid type [Title/Abstract]!')
         sys.exit()
-    df = pd.read_csv('data/summary_dataset.csv', encoding='utf-8')
-
-    pdb.set_trace()
+    df = pd.read_csv('data/summary_dataset.csv')
+    df.Abstract = df.Abstract.fillna('')
 
     # legacy_topic_modeling(df, args.type)
 
