@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 WEIRD ISMIR Explorer visualization app on Dash
 
@@ -6,7 +5,7 @@ Copyright 2024, J.S. Gómez-Cañón, Erick Siavichay
 Licensed under GNU AFFERO GENERAL PUBLIC LICENSE
 """
 
-import numpy as np
+import logging
 import pandas as pd
 from collections import Counter
 import dash
@@ -15,14 +14,39 @@ from dash.dependencies import Input, Output
 import plotly.graph_objs as go
 import plotly.offline as pyo
 import ast
+from typing import List, Dict, Any
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class Plotter:
-    def __init__(self):
-        self.data = pd.read_csv("data/ismir_all_papers.csv")
+    """Handles the visualization of ISMIR paper data using Dash."""
 
-    def make_paper_info(self, idx):
-        df_subset = self.data.iloc[idx]
+    LAYOUT_COMMON = dict(
+        margin=dict(l=0, r=0, b=0, t=40),
+        legend=dict(x=0, y=0, orientation="h"),
+    )
+
+    def __init__(self):
+        """Initialize plotter with data and clean it."""
+        self.data = pd.read_csv("data/ismir_all_papers.csv")
+        self.data = self.data[self.data["Abstract"] != '""']
+
+        coord_cols = [
+            f"{emb}_{method}_{dim}"
+            for emb in ["title", "abstract"]
+            for method in ["tsne", "umap"]
+            for dim in ["2d", "3d"]
+        ]
+
+        for col in coord_cols:
+            if col in self.data.columns:
+                self.data[col] = self.data[col].str.strip().str.strip('"')
+                self.data[col] = self.data[col].apply(ast.literal_eval)
+
+    def make_paper_info(self, idx: int) -> html.Div:
+        """Creates a layout div containing information about a specific paper."""
         url = self.data.loc[idx, "Link"]
         authors = self.data.loc[idx, "Authors"]
         title = self.data.loc[idx, "Title"]
@@ -78,6 +102,7 @@ class Plotter:
         return layout
 
     def create_layout(self, app):
+        """Creates the main layout for the Dash application."""
         layout = html.Div(
             style={"background-color": "#ffffff"},
             children=[
@@ -240,6 +265,8 @@ class Plotter:
         return layout
 
     def run_callbacks(self, app):
+        """Sets up the callbacks for the Dash application."""
+
         @app.callback(
             [Output("graph-papers", "figure")],
             [
@@ -250,86 +277,71 @@ class Plotter:
             ],
         )
         def display_plot(dim, emb_type, color, method):
-            # Read the main dataframe if needed
-            self.data = pd.read_csv("data/ismir_all_papers.csv")
+            try:
+                col_prefix = f"{emb_type}_{method}_{dim}"
 
-            # Get column names for the coordinates
-            col_prefix = f"{emb_type}_{method}_{dim}"
-            self.data[col_prefix] = self.data[col_prefix].apply(ast.literal_eval)
+                if dim == "2d":
+                    data = [
+                        go.Scattergl(
+                            x=[coord[0] for coord in group[col_prefix]],
+                            y=[coord[1] for coord in group[col_prefix]],
+                            mode="markers",
+                            name=sel,
+                            marker=dict(
+                                size=6, symbol="circle", opacity=0.6, line_width=1
+                            ),
+                            text=group["Title"],
+                        )
+                        for sel, group in self.data.groupby(color)
+                    ]
+                    figure = go.Figure(data=data, layout=self.LAYOUT_COMMON)
 
-            if dim == "2d":
-                axes = dict(showgrid=True, zeroline=True, showticklabels=False)
-                layout = go.Layout(
-                    margin=dict(l=0, r=0, b=0, t=40),
-                    legend=dict(x=0, y=0, orientation="h"),
+                else:  # 3d
+                    data = [
+                        go.Scatter3d(
+                            x=[coord[0] for coord in group[col_prefix]],
+                            y=[coord[1] for coord in group[col_prefix]],
+                            z=[coord[2] for coord in group[col_prefix]],
+                            mode="markers",
+                            name=sel,
+                            marker=dict(
+                                size=3, symbol="circle", opacity=0.6, line_width=1
+                            ),
+                            text=group["Title"],
+                        )
+                        for sel, group in self.data.groupby(color)
+                    ]
+                    figure = go.Figure(data=data, layout=self.LAYOUT_COMMON)
+
+                figure.update_layout(
+                    title=f"{method.upper()} embeddings of {emb_type}s",
+                    scene=dict(
+                        xaxis_title="Dim 1",
+                        yaxis_title="Dim 2",
+                        zaxis_title="Dim 3" if dim == "3d" else None,
+                    ),
                 )
-
-                data = [
-                    go.Scattergl(
-                        x=[coord[0] for coord in group[col_prefix]],
-                        y=[coord[1] for coord in group[col_prefix]],
-                        mode="markers",
-                        name=sel,
-                        marker=dict(size=6, symbol="circle", opacity=0.6, line_width=1),
-                        text=group["Title"],
-                    )
-                    for sel, group in self.data.groupby(color)
-                ]
-                figure = go.Figure(data=data, layout=layout)
-
-            else:  # 3d
-                axes = dict(showgrid=True, zeroline=True, showticklabels=False)
-                layout = go.Layout(
-                    margin=dict(l=0, r=0, b=0, t=40),
-                    legend=dict(x=0, y=0, orientation="h"),
-                )
-
-                data = [
-                    go.Scatter3d(
-                        x=[coord[0] for coord in group[col_prefix]],
-                        y=[coord[1] for coord in group[col_prefix]],
-                        z=[coord[2] for coord in group[col_prefix]],
-                        mode="markers",
-                        name=sel,
-                        marker=dict(size=3, symbol="circle", opacity=0.6, line_width=1),
-                        text=group["Title"],
-                    )
-                    for sel, group in self.data.groupby(color)
-                ]
-                figure = go.Figure(data=data, layout=layout)
-
-            figure.update_layout(
-                title=f"{method.upper()} embeddings of {emb_type}s",
-                scene=dict(
-                    xaxis_title="Dim 1",
-                    yaxis_title="Dim 2",
-                    zaxis_title="Dim 3" if dim == "3d" else None,
-                ),
-            )
-
-            return [figure]
+                return [figure]
+            except Exception as e:
+                logger.error(f"Error creating plot: {e}")
+                return [go.Figure()]
 
         @app.callback(
             Output("click-information", "children"),
-            [Input("graph-papers", "clickData"), Input("dropdown-dim", "value")],
+            [Input("graph-papers", "clickData")],
         )
-        def display_info(click_data, dim):
+        def display_info(click_data):
             if not click_data:
                 return "Each point in the plot is a paper, select one to view more information."
 
-            coords = [
-                click_data["points"][0][i]
-                for i in ["x", "y"] + (["z"] if dim == "3d" else [])
-            ]
-
-            # Find the paper with matching coordinates
-            col_name = f"{emb_type}_{method}_{dim}"
-            coords_str = ",".join(map(str, coords))
-            matching_papers = self.data[self.data[col_name] == coords_str]
-
-            if not matching_papers.empty:
-                return self.make_paper_info(matching_papers.index[0])
-            return "Paper not found"
+            try:
+                point_index = click_data["points"][0]["pointIndex"]
+                if point_index >= len(self.data):
+                    return "Invalid paper index"
+                return self.make_paper_info(point_index)
+            except Exception as e:
+                logger.error(f"Error processing click data: {e}")
+                return "Error processing paper information"
 
 
 plotter = Plotter()

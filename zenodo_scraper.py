@@ -795,6 +795,6 @@ if __name__ == "__main__":
     # Concatenate all data, get first author info, and embedding info
     # utils.create_concatenated_data(save_dir)
     utils.create_first_author_columns()
-    utils.create_embeddings()
+    # utils.create_embeddings()
 
     print("All data has been scraped and processed!")
