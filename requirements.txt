@@ -189,3 +189,4 @@ widgetsnbextension==4.0.13
 wordcloud==1.9.4
 wsproto==1.2.0
 zipp==3.18.1
+umap-learn
