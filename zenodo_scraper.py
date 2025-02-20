@@ -728,10 +728,7 @@ def scrape_all_websites(urls):
     for url, year in urls:
         print(f"Scraping ISMIR website papers for year: {year}")
         if not os.path.exists(f"data/ismir/ismir_{year}.csv"):
-            if year == 2024:
-                data = scrape_website_without_zenodo(url)
-            else:
-                data = scrape_website_zenodo(url)
+            data = scrape_website_zenodo(url)
             if not os.path.exists("data"):
                 os.makedirs("data")
             if not os.path.exists("data/ismir"):
@@ -746,12 +743,11 @@ def postprocess_all_data(paths, save_dir):
     for data_path in tqdm(paths, desc="Postprocessing Data"):
 
         # only run on csv that dont have these already
-        if "2024" not in data_path:
-            print(f"Generating affiliations for: {data_path}")
-            generate_affiliations(data_path, save_dir)
+        print(f"Generating affiliations for: {data_path}")
+        generate_affiliations(data_path, save_dir)
 
-            print(f"Extracting abstracts for: {data_path}")
-            generate_abstracts(data_path, save_dir)
+        print(f"Extracting abstracts for: {data_path}")
+        generate_abstracts(data_path, save_dir)
 
         # Drops missing info
         df = pd.read_csv(f"{save_dir}/{data_path}")
@@ -769,32 +765,22 @@ def postprocess_all_data(paths, save_dir):
 if __name__ == "__main__":
 
     # ISMIR websites to scrape
-    # years = list(range(2000, 2024))
-
-    # urls = []
-
-    # for year in years:
-    #     if year == 2024:
-    #         urls.append(
-    #             ("https://ismir2024program.ismir.net/papers.html?filter=keywords", year)
-    #         )
-
-    #     else:
-    #         urls.append((f"https://ismir.net/conferences/ismir{year}.html", year))
+    years = list(range(2000, 2024))
+    urls = [(f"https://ismir.net/conferences/ismir{year}.html", year) for year in years]
 
     # Scrape information
-    # scrape_all_websites(urls)
+    scrape_all_websites(urls)
 
     # Use an LLM to automate tasks in post processing step
     # Tasks can include abstract extraction, keyword extraction, and author affiliation extraction
-    # print("Postprocessing all data")
-    # save_dir = "data/ismir"
-    # data_paths = sorted(os.listdir(save_dir))
+    print("Postprocessing all data")
+    save_dir = "data/ismir"
+    data_paths = sorted(os.listdir(save_dir))
     # postprocess_all_data(data_paths, save_dir)
 
     # Concatenate all data, get first author info, and embedding info
     # utils.create_concatenated_data(save_dir)
-    utils.create_first_author_columns()
+    # utils.create_first_author_columns()
     # utils.create_embeddings()
 
     print("All data has been scraped and processed!")

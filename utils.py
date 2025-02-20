@@ -9,6 +9,8 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 import umap
 
+import pdb
+
 GOOGLE_SHEET_ID = "1bxYfVBG-12H41vdVkWMth9rKn9JhUWAw2GwWflfVots"
 GOOGLE_SHEET_TAB_NAME = "UN%20categorization"
 
@@ -72,6 +74,7 @@ def create_concatenated_data(data_dir, save_dir="data/"):
             data = pd.read_csv(os.path.join(data_dir, file))
             all_data.append(data)
     concatenated_data = pd.concat(all_data, ignore_index=True)
+    pdb.set_trace()
     concatenated_data.to_csv(
         os.path.join(save_dir, "ismir_all_papers.csv"), index=False
     )

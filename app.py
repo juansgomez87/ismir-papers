@@ -333,9 +333,12 @@ class Plotter:
         def display_info(click_data):
             if not click_data:
                 return "Each point in the plot is a paper, select one to view more information."
-
             try:
-                point_index = click_data["points"][0]["pointIndex"]
+                if 'pointIndex' in click_data["points"][0].keys():
+                    point_index = click_data["points"][0]["pointIndex"]
+                elif 'pointNumber' in click_data["points"][0].keys():
+                    point_index = click_data["points"][0]["pointNumber"]
+
                 if point_index >= len(self.data):
                     return "Invalid paper index"
                 return self.make_paper_info(point_index)
