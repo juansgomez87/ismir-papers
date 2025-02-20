@@ -776,11 +776,11 @@ if __name__ == "__main__":
     print("Postprocessing all data")
     save_dir = "data/ismir"
     data_paths = sorted(os.listdir(save_dir))
-    # postprocess_all_data(data_paths, save_dir)
+    postprocess_all_data(data_paths, save_dir)
 
     # Concatenate all data, get first author info, and embedding info
-    # utils.create_concatenated_data(save_dir)
-    # utils.create_first_author_columns()
-    # utils.create_embeddings()
+    utils.create_concatenated_data(save_dir)
+    utils.create_first_author_columns()
+    utils.create_embeddings()
 
     print("All data has been scraped and processed!")

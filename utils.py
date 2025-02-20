@@ -11,10 +11,6 @@ import umap
 
 import pdb
 
-GOOGLE_SHEET_ID = "1bxYfVBG-12H41vdVkWMth9rKn9JhUWAw2GwWflfVots"
-GOOGLE_SHEET_TAB_NAME = "UN%20categorization"
-
-
 def create_embeddings(data_path="data/ismir_all_papers.csv", pca_variance=0.95):
     """
     Creates a 2D and 3D embeddings of paper titles and abstracts using TSNE and UMAP. For TSNE, we first use PCA with
@@ -74,7 +70,9 @@ def create_concatenated_data(data_dir, save_dir="data/"):
             data = pd.read_csv(os.path.join(data_dir, file))
             all_data.append(data)
     concatenated_data = pd.concat(all_data, ignore_index=True)
-    pdb.set_trace()
+    concatenated_data.rename(columns={'Unnamed: 0': 'conference_index'}, inplace=True)
+    concatenated_data = concatenated_data.sort_values(by=['Year'], ascending=True)
+    concatenated_data.reset_index(inplace=True, drop=True)
     concatenated_data.to_csv(
         os.path.join(save_dir, "ismir_all_papers.csv"), index=False
     )
@@ -100,9 +98,7 @@ def create_first_author_columns(data_path="data/ismir_all_papers.csv"):
     )
 
     # ISO code is in a column called "ISO Code" and un economy category is in a column called "Economic Category"
-    un_cat = pd.read_csv(
-        f"https://docs.google.com/spreadsheets/d/{GOOGLE_SHEET_ID}/gviz/tq?tqx=out:csv&sheet={GOOGLE_SHEET_TAB_NAME}"
-    )
+    un_cat = pd.read_csv('data/UN_categorization.csv')
     df["first_aff_cat_UN"] = df["first_country"].apply(
         lambda x: (
             un_cat[un_cat["ISO Code"] == x]["Economic Category"].values[0]
@@ -110,7 +106,7 @@ def create_first_author_columns(data_path="data/ismir_all_papers.csv"):
             else "Unknown"
         )
     )
-
+    
     df.to_csv(data_path, index=False)
 
 
