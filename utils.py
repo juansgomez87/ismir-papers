@@ -70,6 +70,7 @@ def create_concatenated_data(data_dir, save_dir="data/"):
             data = pd.read_csv(os.path.join(data_dir, file))
             all_data.append(data)
     concatenated_data = pd.concat(all_data, ignore_index=True)
+    concatenated_data['Abstract'] = concatenated_data['Abstract'].str.replace(r'[\n\r]', ' ', regex=True)
     concatenated_data.rename(columns={'Unnamed: 0': 'conference_index'}, inplace=True)
     concatenated_data = concatenated_data.sort_values(by=['Year'], ascending=True)
     concatenated_data.reset_index(inplace=True, drop=True)
