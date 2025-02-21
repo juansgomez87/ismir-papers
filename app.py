@@ -14,6 +14,7 @@ from dash.dependencies import Input, Output
 import plotly.graph_objs as go
 import plotly.offline as pyo
 import ast
+import re
 from typing import List, Dict, Any
 
 logging.basicConfig(level=logging.INFO)
@@ -31,6 +32,11 @@ class Plotter:
     def __init__(self):
         """Initialize plotter with data and clean it."""
         self.data = pd.read_csv("data/ismir_all_papers.csv")
+        self.data['point_index'] = list(range(0, self.data.shape[0], 1))
+        self.data['Affiliation country'] = self.data['Authors with Affiliations'].apply(lambda x: ', '.join([entry.split('>')[1] for entry in x.split(';')]))
+        self.data['Affiliation type'] = self.data['Authors with Affiliations'].apply(lambda x: ', '.join([entry.split('>')[-1] for entry in x.split(';')]))
+        self.data['UN Categories'] = self.data['Affiliation country'].apply(self.map_countries_to_categories)
+
         self.data = self.data[self.data["Abstract"] != '""']
 
         coord_cols = [
@@ -45,6 +51,12 @@ class Plotter:
                 self.data[col] = self.data[col].str.strip().str.strip('"')
                 self.data[col] = self.data[col].apply(ast.literal_eval)
 
+    def map_countries_to_categories(self, iso_list):
+        """Load UN categorization"""
+        un_cat = pd.read_csv("data/UN_categorization.csv")[['ISO Code', 'Economic Category']]
+        iso_to_category = dict(zip(un_cat['ISO Code'], un_cat['Economic Category']))
+        return ', '.join([iso_to_category.get(iso.strip(), 'Unknown') for iso in iso_list.split(',')])
+
     def make_paper_info(self, idx: int) -> html.Div:
         """Creates a layout div containing information about a specific paper."""
         url = self.data.loc[idx, "Link"]
@@ -52,20 +64,35 @@ class Plotter:
         title = self.data.loc[idx, "Title"]
         abstract = self.data.loc[idx, "Abstract"]
         year = self.data.loc[idx, "Year"]
-        countries = self.data.loc[idx, "first_country"].split(", ")
-
+        countries = self.data.loc[idx, "Affiliation country"].split(", ")
+        country_counts = Counter(countries)
+        locations = list(country_counts.keys())
+        counts = list(country_counts.values())
         fig_map = go.Figure()
         fig_map.add_trace(
             go.Choropleth(
-                locations=list(Counter(countries).keys()),
-                z=list(Counter(countries).values()),
-                colorscale="Reds",
-                reversescale=True,
+                locations=locations,
+                z=counts,
+                colorscale="plasma",
+                reversescale=False,
                 autocolorscale=False,
                 colorbar_title="Counts",
+                showscale=False, 
             )
         )
-
+        fig_map.add_trace(
+            go.Scattergeo(
+                locations=locations,
+                locationmode="ISO-3",
+                text=[f"{loc}: {cnt}" for loc, cnt in zip(locations, counts)],  # Country: Count
+                mode="text",  # Display only text
+                textfont=dict(color="black", size=15, family="Arial"),
+            )
+        )
+        fig_map.update_traces(
+            hovertext=[f"{loc}: {cnt}" for loc, cnt in zip(locations, counts)],
+            hoverinfo="text",
+        )
         fig_map.update_geos(showcountries=True)
         fig_map.update_layout(
             height=300,
@@ -78,9 +105,8 @@ class Plotter:
         layout = html.Div(
             [
                 html.H6("Article information:"),
-                html.P(f"Title: {title}"),
+                html.P(f"Title: {title} ({year})"),
                 html.P(f"Authors: {authors}"),
-                html.P(f"Year: {year}"),
                 html.P(f"Abstract: {abstract}"),
                 html.A(
                     html.Img(
@@ -111,7 +137,7 @@ class Plotter:
                     style={"background-color": "#f9f9f9", "margin": "5px 5px 5px 5px"},
                     children=[
                         html.H3(
-                            "Not so WEIRD: A bibliometric analysis of ISMIR authorship",
+                            "Beyond a western center of MIR: A bibliometric analysis of 2000-2024 ISMIR authorship",
                             style={"text-align": "right"},
                             className="nine columns",
                         ),
@@ -157,7 +183,7 @@ class Plotter:
                                                                     "value": "umap",
                                                                 },
                                                             ],
-                                                            value="tsne",
+                                                            value="umap",
                                                         ),
                                                     ],
                                                 ),
@@ -290,7 +316,8 @@ class Plotter:
                             marker=dict(
                                 size=6, symbol="circle", opacity=0.6, line_width=1
                             ),
-                            text=group["Title"],
+                            text=group.apply(lambda row: f"Title: {row['Title']}<br>Year: {row['Year']}<br>Index: {row['point_index']}", axis=1),
+                            hoverinfo="text"
                         )
                         for sel, group in self.data.groupby(color)
                     ]
@@ -307,7 +334,8 @@ class Plotter:
                             marker=dict(
                                 size=3, symbol="circle", opacity=0.6, line_width=1
                             ),
-                            text=group["Title"],
+                            text=group.apply(lambda row: f"Title: {row['Title']}<br>Year: {row['Year']}<br>Index: {row['point_index']}", axis=1),
+                            hoverinfo="text"
                         )
                         for sel, group in self.data.groupby(color)
                     ]
@@ -334,10 +362,9 @@ class Plotter:
             if not click_data:
                 return "Each point in the plot is a paper, select one to view more information."
             try:
-                if 'pointIndex' in click_data["points"][0].keys():
-                    point_index = click_data["points"][0]["pointIndex"]
-                elif 'pointNumber' in click_data["points"][0].keys():
-                    point_index = click_data["points"][0]["pointNumber"]
+                match = re.search(r"Index: (\d+)", click_data["points"][0]['text'])
+                if match:
+                    point_index = int(match.group(1)) 
 
                 if point_index >= len(self.data):
                     return "Invalid paper index"
