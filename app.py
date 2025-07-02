@@ -286,7 +286,7 @@ class Plotter:
                         ),
                     ],
                 ),
-            ],
+            ]
         )
         return layout
 
@@ -375,7 +375,6 @@ class Plotter:
 
 
 plotter = Plotter()
-
 external_stylesheets = ["https://codepen.io/chriddyp/pen/bWLwgP.css"]
 
 dash_app = dash.Dash(

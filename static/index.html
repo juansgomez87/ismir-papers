@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISMIR25Viz - Interactive Paper Visualization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.26.0/plotly.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #8e2038 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin: 20px;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.2em;
+            font-weight: 700;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        .container {
+            display: flex;
+            gap: 20px;
+            padding: 0 20px 20px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .main-content {
+            flex: 2;
+            min-width: 0;
+        }
+
+        .sidebar {
+            flex: 0 0 350px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .controls h3 {
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            color: #333;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+            font-size: 0.95em;
+        }
+
+        .control-group select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 14px;
+            background: white;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .control-group select:hover {
+            border-color: #667eea;
+        }
+
+        .control-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        #plotDiv {
+            width: 100%;
+            height: 70vh;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .paper-info {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            max-height: 60vh;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .paper-info h4 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 1.2em;
+        }
+
+        .paper-info p {
+            margin-bottom: 12px;
+            line-height: 1.5;
+            color: #555;
+        }
+
+        .paper-info .abstract {
+            background: #f8fafc;
+            padding: 15px;
+            border-left: 4px solid #667eea;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-size: 0.95em;
+            line-height: 1.6;
+        }
+
+        .paper-info a {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 15px;
+            padding: 10px 16px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            text-decoration: none;
+            border-radius: 10px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .paper-info a:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .loading {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            font-size: 18px;
+            color: #666;
+        }
+
+        .loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e2e8f0;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 30px;
+            margin: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .error h3 {
+            color: #e53e3e;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+        }
+
+        .error p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+
+        .file-upload {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 20px;
+            padding: 40px;
+            margin: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .file-upload h3 {
+            margin-bottom: 20px;
+            color: #333;
+            font-size: 1.5em;
+        }
+
+        .file-input-group {
+            margin: 20px 0;
+            text-align: left;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .file-input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .file-input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px dashed #667eea;
+            border-radius: 12px;
+            background: #f8fafc;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-input-group input:hover {
+            border-color: #764ba2;
+            background: #f1f5f9;
+        }
+
+        .load-button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .load-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .load-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .stats {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 12px;
+            margin-top: 15px;
+            border-left: 4px solid #10b981;
+            opacity: 0.0;
+        }
+
+        .stats strong {
+            color: #065f46;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                flex: none;
+            }
+            
+            #plotDiv {
+                height: 70vh;
+            }
+            
+            .paper-info {
+                max-height: 40vh;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Beyond a western center of MIR: ISMIR25Viz</h1>
+        <!-- <p>Beyond a western center of MIR: A bibliometric analysis of 2000-2024 ISMIR authorship</p> -->
+        <p style="font-size: 10px; line-height: 1.4;">
+            Over the past two decades, the Music Information Retrieval (MIR) community has grown significantly in both the volume and diversity of research contributions.
+            However, questions remain about who is represented within the community—and who is not.
+            The influence of Western, Educated, Industrialized, Rich, and Democratic (WEIRD) science shapes MIR research, affecting topic selection, cross-cultural considerations, and reproducibility.
+            While discussions on the impact of the WEIRD framework have gained traction in adjacent fields, there remains a need to critically assess its presence and limitations within MIR.
+            This study analyzes the corpus of 2,458 ISMIR conference papers (2000–2024) to examine the geographic and institutional distribution of authors.
+            Our findings indicate that ISMIR research remains Western-centric, with disproportionate representation from the Global North alongside increasing cross-institutional collaborations.
+            In addition to bibliometric insights, we provide an aggregated dataset <strong>ISMIR25Meta</strong>, a novel topic-based visualizer <strong>ISMIR25Viz</strong>, and recommendations for fostering a more inclusive MIR community.
+          </p>
+    </div>
+
+    <div class="container">
+
+        <div class="main-content">
+            <div id="plotDiv">
+                <div id="loadingSpinner" class="loading">
+                    <div class="loading-spinner"></div>
+                    <div>Loading visualization...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="sidebar">
+            <div class="controls">
+                <h3>Visualization Controls</h3>
+                
+                <div class="control-group">
+                    <label for="methodSelect">Dimensionality Reduction:</label>
+                    <select id="methodSelect">
+                        <option value="tsne">t-SNE</option>
+                        <option value="umap" selected>UMAP</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="dimSelect">Plot Dimensionality:</label>
+                    <select id="dimSelect">
+                        <option value="2d" selected>2D View</option>
+                        <option value="3d">3D View</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="embeddingSelect">Embedding Source:</label>
+                    <select id="embeddingSelect">
+                        <option value="title">Paper Titles</option>
+                        <option value="abstract" selected>Paper Abstracts</option>
+                    </select>
+                </div>
+                
+                <div class="control-group">
+                    <label for="colorSelect">Color By:</label>
+                    <select id="colorSelect">
+                        <option value="Year" selected>Publication Year</option>
+                        <option value="first_country">Country</option>
+                        <option value="first_aff_cat">Affiliation Type</option>
+                        <option value="first_aff_cat_UN">UN Categories</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="paper-info" id="paperInfo">
+                <h4>📄 Paper Details</h4>
+                <p>Click on any point in the visualization to explore paper details, abstracts, and author information.</p>
+                <div class="stats">
+                    <strong>Interactive Features:</strong><br>
+                    • Hover for quick info<br>
+                    • Click for detailed view<br>
+                    • Zoom and pan to explore<br>
+                    • Switch between 2D/3D views
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class ISMIRExplorer {
+            constructor() {
+                this.data = null;
+                this.unCategories = null;
+                this.currentPlot = null;
+                this.init();
+            }
+
+            async init() {
+                try {
+                    await this.loadData();
+                    this.setupEventListeners();
+                    this.updatePlot();
+                } catch (error) {
+                    console.error('Initialization failed:', error);
+                    this.showError('Failed to initialize application', error.message);
+                }
+            }
+
+            async loadData() {
+                try {
+                    // // Priority 1: Check for embedded JSON data
+                    // if (window.ISMIR_PAPERS_DATA && window.ISMIR_PAPERS_DATA.length > 0 && 
+                    //     window.UN_CATEGORIES_DATA && window.UN_CATEGORIES_DATA.length > 0) {
+                    //     console.log('Using embedded JSON data');
+                    //     this.data = window.ISMIR_PAPERS_DATA;
+                    //     this.unCategories = window.UN_CATEGORIES_DATA;
+                    //     this.processData();
+                    //     return;
+                    // }
+
+                    // Priority 2: Try to fetch JSON files
+                    if (window.location.protocol !== 'file:') {
+
+                        try {
+                            const [dataResponse, unResponse] = await Promise.all([
+                                fetch('data/ismir_all_papers.json'),
+                                fetch('data/UN_categorization.json')
+                            ]);
+
+                            if (dataResponse.ok && unResponse.ok) {
+                                const [dataJson, unJson] = await Promise.all([
+                                    dataResponse.json(),
+                                    unResponse.json()
+                                ]);
+
+                                this.data = dataJson;
+                                this.unCategories = unJson;
+                                this.processData();
+                                return;
+                            }
+                        } catch (fetchError) {
+                            console.warn('JSON fetch failed:', fetchError);
+                        }
+                    }
+
+                    // Priority 3: Try CSV files (fallback)
+                    if (window.location.protocol !== 'file:') {
+                        try {
+                            const [csvResponse, unResponse] = await Promise.all([
+                                fetch('data/ismir_all_papers.csv'),
+                                fetch('data/UN_categorization.csv')
+                            ]);
+
+                            if (csvResponse.ok && unResponse.ok) {
+                                const [csvText, unText] = await Promise.all([
+                                    csvResponse.text(),
+                                    unResponse.text()
+                                ]);
+
+                                this.data = Papa.parse(csvText, { 
+                                    header: true, 
+                                    skipEmptyLines: true,
+                                    dynamicTyping: true,
+                                    trimHeaders: true
+                                }).data;
+                                
+                                this.unCategories = Papa.parse(unText, { 
+                                    header: true, 
+                                    skipEmptyLines: true,
+                                    trimHeaders: true
+                                }).data;
+
+                                this.processData();
+                                return;
+                            }
+                        } catch (csvError) {
+                            console.warn('CSV fetch failed:', csvError);
+                        }
+                    }
+
+                    // Priority 4: Use sample data for demonstration
+                    console.log('Using sample data for demonstration');
+                    this.data = window.SAMPLE_DATA;
+                    this.unCategories = window.SAMPLE_UN_DATA;
+                    this.processData();
+                    this.showSampleDataWarning();
+
+                } catch (error) {
+                    console.error('Data loading error:', error);
+                    this.showFileUploadInterface(error.message);
+                }
+            }
+
+            showSampleDataWarning() {
+                const infoDiv = document.getElementById('paperInfo');
+                infoDiv.innerHTML = `
+                    <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                        <h4 style="color: #92400e; margin-bottom: 10px;">⚠️ Using Sample Data</h4>
+                        <p style="color: #92400e; font-size: 0.9em; line-height: 1.4;">
+                            You're currently viewing sample data. To use your own data:
+                        </p>
+                        <ol style="color: #92400e; font-size: 0.9em; line-height: 1.4; margin: 10px 0; padding-left: 20px;">
+                            <li>Convert your CSV files to JSON format</li>
+                            <li>Replace the <code>ISMIR_PAPERS_DATA</code> and <code>UN_CATEGORIES_DATA</code> arrays in the code</li>
+                            <li>Or place JSON files in a <code>data/</code> folder</li>
+                        </ol>
+                    </div>
+                    <h4>📄 Paper Details</h4>
+                    <p>Click on any point in the visualization to explore paper details, abstracts, and author information.</p>
+                    <div class="stats">
+                        <strong>Interactive Features:</strong><br>
+                        • Hover for quick info<br>
+                        • Click for detailed view<br>
+                        • Zoom and pan to explore<br>
+                        • Switch between 2D/3D views
+                    </div>
+                `;
+            }
+
+            showFileUploadInterface(errorMessage = null) {
+                const errorHtml = errorMessage ? `
+                    <div style="background: #fee2e2; color: #dc2626; padding: 15px; border-radius: 12px; margin-bottom: 20px; border-left: 4px solid #dc2626;">
+                        <strong>⚠️ Error:</strong> ${errorMessage}
+                    </div>
+                ` : '';
+
+                document.getElementById('plotDiv').innerHTML = `
+                    <div class="file-upload">
+                        ${errorHtml}
+                        <h3>📁 Load Your Data Files</h3>
+                        <p>Upload your CSV files to convert them to JSON and start exploring:</p>
+                        
+                        <div class="file-input-group">
+                            <label for="ismirFile">📊 ISMIR Papers CSV:</label>
+                            <input type="file" id="ismirFile" accept=".csv">
+                        </div>
+                        
+                        <div class="file-input-group">
+                            <label for="unFile">🌍 UN Categorization CSV:</label>
+                            <input type="file" id="unFile" accept=".csv">
+                        </div>
+                        
+                        <div style="display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+                            <button id="loadFiles" class="load-button">
+                                🚀 Load & Visualize
+                            </button>
+                            <button id="convertToJson" class="load-button" style="background: linear-gradient(45deg, #10b981, #059669);">
+                                📄 Convert to JSON
+                            </button>
+                        </div>
+                        
+                        <div id="jsonOutput" style="display: none; margin-top: 30px; padding: 20px; background: #f8fafc; border-radius: 12px; text-align: left;">
+                            <h4>📋 Generated JSON Code:</h4>
+                            <p style="font-size: 0.9em; color: #666; margin-bottom: 15px;">
+                                Copy this code and paste it into the data section at the top of the HTML file:
+                            </p>
+                            <textarea id="jsonCode" style="width: 100%; height: 200px; font-family: monospace; font-size: 12px; padding: 10px; border: 1px solid #ccc; border-radius: 6px; resize: vertical;"></textarea>
+                            <button onclick="this.previousElementSibling.select(); document.execCommand('copy');" class="load-button" style="margin-top: 10px; padding: 8px 16px; font-size: 14px;">
+                                📋 Copy to Clipboard
+                            </button>
+                        </div>
+                        
+                        <div style="margin-top: 30px; padding: 20px; background: #f1f5f9; border-radius: 12px; text-align: left; max-width: 600px; margin-left: auto; margin-right: auto;">
+                            <h4>💡 Recommended Approach:</h4>
+                            <ol style="margin: 10px 0; padding-left: 20px; line-height: 1.6;">
+                                <li><strong>Convert to JSON:</strong> Click "Convert to JSON" to generate the code</li>
+                                <li><strong>Embed data:</strong> Replace the data arrays in the HTML file</li>
+                                <li><strong>Save file:</strong> Save the HTML with embedded data</li>
+                                <li><strong>Open anywhere:</strong> No server needed, works offline!</li>
+                            </ol>
+                            
+                            <h4>🛠️ Alternative: Use JSON Files:</h4>
+                            <ul style="margin: 10px 0; padding-left: 20px; line-height: 1.6;">
+                                <li>Save converted JSON as <code>data/ismir_papers.json</code></li>
+                                <li>Save UN data as <code>data/un_categories.json</code></li>
+                                <li>Serve with: <code>python -m http.server 8000</code></li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+                
+                const loadButton = document.getElementById('loadFiles');
+                const convertButton = document.getElementById('convertToJson');
+                
+                if (loadButton) {
+                    loadButton.addEventListener('click', () => this.handleFileUpload());
+                }
+                
+                if (convertButton) {
+                    convertButton.addEventListener('click', () => this.convertCsvToJson());
+                }
+            }
+
+            async convertCsvToJson() {
+                const ismirFile = document.getElementById('ismirFile').files[0];
+                const unFile = document.getElementById('unFile').files[0];
+                
+                if (!ismirFile || !unFile) {
+                    alert('⚠️ Please select both CSV files to convert');
+                    return;
+                }
+                
+                const convertButton = document.getElementById('convertToJson');
+                convertButton.disabled = true;
+                convertButton.textContent = '🔄 Converting...';
+                
+                try {
+                    const [ismirText, unText] = await Promise.all([
+                        this.readFile(ismirFile),
+                        this.readFile(unFile)
+                    ]);
+                    
+                    const ismirData = Papa.parse(ismirText, { 
+                        header: true, 
+                        skipEmptyLines: true,
+                        dynamicTyping: true,
+                        trimHeaders: true
+                    }).data;
+                    
+                    const unData = Papa.parse(unText, { 
+                        header: true, 
+                        skipEmptyLines: true,
+                        trimHeaders: true
+                    }).data;
+                    
+                    // Generate the JavaScript code to embed
+                    const jsCode = `// Replace the existing data arrays with this code:
+
+window.ISMIR_PAPERS_DATA = ${JSON.stringify(ismirData, null, 2)};
+
+window.UN_CATEGORIES_DATA = ${JSON.stringify(unData, null, 2)};
+
+// Data loaded: ${ismirData.length} papers, ${unData.length} UN categories`;
+                    
+                    // Show the generated code
+                    document.getElementById('jsonOutput').style.display = 'block';
+                    document.getElementById('jsonCode').value = jsCode;
+                    
+                    convertButton.textContent = '✅ Conversion Complete!';
+                    convertButton.style.background = 'linear-gradient(45deg, #10b981, #059669)';
+                    
+                    // Auto-scroll to the output
+                    document.getElementById('jsonOutput').scrollIntoView({ behavior: 'smooth' });
+                    
+                } catch (error) {
+                    console.error('Conversion error:', error);
+                    alert('❌ Conversion failed: ' + error.message);
+                    convertButton.disabled = false;
+                    convertButton.textContent = '📄 Convert to JSON';
+                }
+            }
+
+            async handleFileUpload() {
+                const ismirFile = document.getElementById('ismirFile').files[0];
+                const unFile = document.getElementById('unFile').files[0];
+                
+                if (!ismirFile || !unFile) {
+                    alert('⚠️ Please select both CSV files to continue');
+                    return;
+                }
+                
+                const loadButton = document.getElementById('loadFiles');
+                loadButton.disabled = true;
+                loadButton.textContent = '⏳ Loading...';
+                
+                try {
+                    const [ismirText, unText] = await Promise.all([
+                        this.readFile(ismirFile),
+                        this.readFile(unFile)
+                    ]);
+                    
+                    this.data = Papa.parse(ismirText, { 
+                        header: true, 
+                        skipEmptyLines: true,
+                        dynamicTyping: true,
+                        trimHeaders: true
+                    }).data;
+                    
+                    this.unCategories = Papa.parse(unText, { 
+                        header: true, 
+                        skipEmptyLines: true,
+                        trimHeaders: true
+                    }).data;
+                    
+                    this.processData();
+                    this.updatePlot();
+                    
+                } catch (error) {
+                    console.error('File upload error:', error);
+                    this.showError('Failed to process files', error.message);
+                }
+            }
+
+            readFile(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = e => resolve(e.target.result);
+                    reader.onerror = e => reject(new Error('Failed to read file: ' + file.name));
+                    reader.readAsText(file);
+                });
+            }
+
+            processData() {
+                console.log('Processing data...');
+                
+                // Create UN category mapping
+                const unMap = {};
+                this.unCategories.forEach(row => {
+                    const isoCode = row['ISO Code'] || row['ISO'] || row['Code'];
+                    const category = row['Economic Category'] || row['Category'] || row['UN Category'];
+                    if (isoCode && category) {
+                        unMap[isoCode.trim()] = category.trim();
+                    }
+                });
+
+                // Filter out papers without abstracts
+                this.data = this.data.filter(row => row.Abstract && row.Abstract.trim() && row.Abstract !== '""');
+                
+                this.data.forEach((row, index) => {
+                    row.point_index = index;
+                    
+                    // Process affiliations
+                    if (row['Authors with Affiliations']) {
+                        const affiliations = row['Authors with Affiliations'].split(';');
+                        const countries = affiliations
+                            .map(aff => aff.split('>')[1])
+                            .filter(c => c && c.trim());
+                        const affTypes = affiliations
+                            .map(aff => aff.split('>').pop())
+                            .filter(t => t && t.trim());
+                        
+                        row['Affiliation country'] = countries.join(', ');
+                        row['Affiliation type'] = affTypes.join(', ');
+                        row['first_country'] = countries[0]?.trim() || 'Unknown';
+                        row['first_aff_cat'] = affTypes[0]?.trim() || 'Unknown';
+                        
+                        // Map to UN categories
+                        const unCats = countries.map(country => {
+                            const cleanCountry = country?.trim();
+                            return unMap[cleanCountry] || 'Unknown';
+                        });
+                        row['UN Categories'] = unCats.join(', ');
+                        row['first_aff_cat_UN'] = unCats[0] || 'Unknown';
+                    } else {
+                        row['first_country'] = 'Unknown';
+                        row['first_aff_cat'] = 'Unknown';
+                        row['first_aff_cat_UN'] = 'Unknown';
+                    }
+                    
+                    // Parse coordinate columns with better error handling
+                    const coordCols = [
+                        'title_tsne_2d', 'title_tsne_3d', 'title_umap_2d', 'title_umap_3d',
+                        'abstract_tsne_2d', 'abstract_tsne_3d', 'abstract_umap_2d', 'abstract_umap_3d'
+                    ];
+                    
+                    coordCols.forEach(col => {
+                        if (row[col]) {
+                            try {
+                                let coordStr = row[col].toString().trim();
+                                // Remove surrounding quotes if present
+                                // coordStr = coordStr.replace(/^["']|["']$/g, '');
+                                row[col] = JSON.parse(coordStr);
+                                console.log(col)
+                            } catch (e) {
+                                console.warn(`Failed to parse coordinates for ${col} in row ${index}:`, row[col]);
+                                row[col] = null;
+                            }
+                        }
+                    });
+                });
+
+                console.log(`Processed ${this.data.length} papers`);
+            }
+
+            setupEventListeners() {
+                ['methodSelect', 'dimSelect', 'embeddingSelect', 'colorSelect'].forEach(id => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.addEventListener('change', () => this.updatePlot());
+                    }
+                });
+            }
+
+            updatePlot() {
+                if (!this.data || this.data.length === 0) {
+                    this.showError('No data available', 'Please load your CSV files first');
+                    return;
+                }
+
+                const method = document.getElementById('methodSelect').value;
+                const dim = document.getElementById('dimSelect').value;
+                const embedding = document.getElementById('embeddingSelect').value;
+                const colorBy = document.getElementById('colorSelect').value;
+                
+                const coordCol = `${embedding}_${method}_${dim}`;
+                
+                // Filter data with valid coordinates
+                const validData = this.data.filter(row => 
+                    row[coordCol] && Array.isArray(row[coordCol]) && row[coordCol].length >= (dim === '2d' ? 2 : 3)
+                );
+                
+                if (validData.length === 0) {
+                    this.showError('No valid coordinates found', `No data available for ${coordCol}. Check your CSV files.`);
+                    return;
+                }
+                
+                // Group data by color property
+                const groups = {};
+                validData.forEach(row => {
+                    const key = row[colorBy] || 'Unknown';
+                    if (!groups[key]) groups[key] = [];
+                    groups[key].push(row);
+                });
+                
+                // Create color palette
+                const colors = ['#667eea', '#764ba2', '#f093fb', '#f5576c', '#4facfe', '#00f2fe', '#43e97b', '#38f9d7', '#ffecd2', '#fcb69f'];
+                
+                // Create traces
+                const traces = Object.entries(groups).map(([key, group], index) => {
+                    const coords = group.map(row => row[coordCol]);
+                    const texts = group.map(row => 
+                        `<b>${row.Title || 'Unknown'}</b><br>` +
+                        `Year: ${row.Year || 'Unknown'}<br>` +
+                        `Authors: ${(row.Authors || 'Unknown').substring(0, 100)}${row.Authors && row.Authors.length > 100 ? '...' : ''}<br>` +
+                        `Country: ${row.first_country || 'Unknown'}<br>` +
+                        `Click for details`
+                    );
+                    
+                    const baseTrace = {
+                        mode: 'markers',
+                        name: key,
+                        text: texts,
+                        hoverinfo: 'text',
+                        hovertemplate: '%{text}<extra></extra>',
+                        marker: {
+                            size: dim === '2d' ? 8 : 5,
+                            opacity: 0.7,
+                            color: colors[index % colors.length],
+                            line: { width: 1, color: 'white' }
+                        }
+                    };
+                    
+                    if (dim === '2d') {
+                        return {
+                            ...baseTrace,
+                            x: coords.map(c => c[0]),
+                            y: coords.map(c => c[1]),
+                            type: 'scattergl'
+                        };
+                    } else {
+                        return {
+                            ...baseTrace,
+                            x: coords.map(c => c[0]),
+                            y: coords.map(c => c[1]),
+                            z: coords.map(c => c[2]),
+                            type: 'scatter3d'
+                        };
+                    }
+                });
+                
+                const layout = {
+                    title: {
+                        text: `${method.toUpperCase()} embeddings of ${embedding}s`,
+                        font: { size: 16, color: '#333' }
+                    },
+                    margin: { l: 50, r: 50, b: 50, t: 60 },
+                    legend: { 
+                        orientation: 'h',
+                        x: 0,
+                        y: -0.1,
+                        font: { size: 12 }
+                    },
+                    plot_bgcolor: 'rgba(0,0,0,0)',
+                    paper_bgcolor: 'rgba(0,0,0,0)'
+                };
+                
+                if (dim === '3d') {
+                    layout.scene = {
+                        xaxis: { title: 'Dimension 1' },
+                        yaxis: { title: 'Dimension 2' },
+                        zaxis: { title: 'Dimension 3' },
+                        bgcolor: 'rgba(0,0,0,0)'
+                    };
+                }
+                
+                const config = {
+                    responsive: true,
+                    displayModeBar: true,
+                    modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d'],
+                    displaylogo: false
+                };
+                
+                Plotly.newPlot('plotDiv', traces, layout, config);
+                
+                // Add click event listener
+                document.getElementById('plotDiv').on('plotly_click', (data) => {
+                    this.handlePlotClick(data, validData);
+                });
+
+                // Update paper info with stats
+                this.updateStats(validData.length, this.data.length);
+            }
+
+            handlePlotClick(data, validData) {
+                if (!data.points || data.points.length === 0) return;
+                
+                const point = data.points[0];
+                const traceIndex = point.curveNumber;
+                const pointIndex = point.pointIndex;
+                
+                // Find the actual paper data
+                const traces = document.getElementById('plotDiv').data;
+                const traceName = traces[traceIndex].name;
+                
+                // Get all papers with this trace name (color group)
+                const groupPapers = validData.filter(row => {
+                    const colorBy = document.getElementById('colorSelect').value;
+                    return (row[colorBy] || 'Unknown') === traceName;
+                });
+                
+                if (groupPapers[pointIndex]) {
+                    this.showPaperInfo(groupPapers[pointIndex]);
+                }
+            }
+
+            showPaperInfo(paper) {
+                if (!paper) return;
+                
+                const infoDiv = document.getElementById('paperInfo');
+                
+                // Create country distribution
+                let countryHtml = '';
+                if (paper['Affiliation country']) {
+                    const countries = paper['Affiliation country'].split(', ');
+                    const countryCounts = {};
+                    countries.forEach(country => {
+                        const clean = country.trim();
+                        countryCounts[clean] = (countryCounts[clean] || 0) + 1;
+                    });
+                    
+                    countryHtml = `
+                        <div class="stats">
+                            <strong>🌍 Author Countries:</strong><br>
+                            ${Object.entries(countryCounts)
+                                .map(([country, count]) => `${country}: ${count} author${count > 1 ? 's' : ''}`)
+                                .join('<br>')}
+                        </div>
+                    `;
+                }
+                
+                // Clean and truncate abstract
+                let abstract = paper.Abstract || 'No abstract available';
+                if (abstract.length > 500) {
+                    abstract = abstract.substring(0, 500) + '...';
+                }
+                
+                infoDiv.innerHTML = `
+                    <h4>📄 Paper Details</h4>
+                    <p><strong>Title:</strong> ${paper.Title || 'Unknown'}</p>
+                    <p><strong>Year:</strong> ${paper.Year || 'Unknown'}</p>
+                    <p><strong>Authors:</strong> ${paper.Authors || 'Unknown'}</p>
+                    
+                    <div class="abstract">
+                        <strong>Abstract:</strong><br>
+                        ${abstract}
+                    </div>
+                    
+                    ${countryHtml}
+                    
+                    ${paper.Link ? `
+                        <a href="${paper.Link}" target="_blank" rel="noopener noreferrer">
+                            🔗 View Full Paper
+                        </a>
+                    ` : ''}
+                `;
+            }
+
+
+            showError(title, message) {
+                document.getElementById('plotDiv').innerHTML = `
+                    <div class="error">
+                        <h3>${title}</h3>
+                        <p>${message}</p>
+                        <button onclick="location.reload()" class="load-button">
+                            🔄 Reload Page
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize the application when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            new ISMIRExplorer();
+            document.getElementById('loadingSpinner').style.display = 'none';
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (document.getElementById('plotDiv').data) {
+                Plotly.Plots.resize('plotDiv');
+            }
+        });
+    
+    </script>
+</body>
+</html>

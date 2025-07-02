@@ -17,7 +17,14 @@ plot.py
 conf_scraper.py
 tester.py
 data/.DS_Store
-
+clean_data.py
+clean_data_progress.json
+ismir25viz/csv_to_json_converter.py
+ismir25viz/generate_recent_trends.py
+remove_duplicates.py
+extract_missing_abstracts.py
+ismir25viz/
+app.py
 
 
 # Byte-compiled / optimized / DLL files

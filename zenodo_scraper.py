@@ -769,18 +769,18 @@ if __name__ == "__main__":
     urls = [(f"https://ismir.net/conferences/ismir{year}.html", year) for year in years]
 
     # Scrape information
-    scrape_all_websites(urls)
+    # scrape_all_websites(urls)
 
     # Use an LLM to automate tasks in post processing step
     # Tasks can include abstract extraction, keyword extraction, and author affiliation extraction
-    print("Postprocessing all data")
-    save_dir = "data/ismir"
-    data_paths = sorted(os.listdir(save_dir))
-    postprocess_all_data(data_paths, save_dir)
+    # print("Postprocessing all data")
+    # save_dir = "data/ismir"
+    # data_paths = sorted(os.listdir(save_dir))
+    # postprocess_all_data(data_paths, save_dir)
 
     # Concatenate all data, get first author info, and embedding info
-    utils.create_concatenated_data(save_dir)
-    utils.create_first_author_columns()
+    # utils.create_concatenated_data(save_dir)
+    # utils.create_first_author_columns()
     utils.create_embeddings()
 
     print("All data has been scraped and processed!")
